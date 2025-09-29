@@ -90,10 +90,11 @@ const float CALIB_SLOPE = 0.0004;        // Absolute value of slope
 // To solve: Lux = (Intercept - V) / Slope
 
 // Lighting thresholds (in calibrated Lux)
-const float DARK_THRESHOLD = 300.0;      // Below 300 lux = dark
-const float NORMAL_MIN = 300.0;          // 300-800 lux = normal
-const float NORMAL_MAX = 800.0;
-const float BRIGHT_THRESHOLD = 800.0;    // Above 800 lux = bright
+// Adjusted based on actual sensor range
+const float DARK_THRESHOLD = 900.0;      // Below 900 lux = dark (adjusted for sensor limits)
+const float NORMAL_MIN = 900.0;          // 900-1200 lux = normal
+const float NORMAL_MAX = 1200.0;
+const float BRIGHT_THRESHOLD = 1200.0;   // Above 1200 lux = bright
 
 const int BUZZER_DURATION = 5000;
 
@@ -317,5 +318,5 @@ void loop() {
   }
   
   handleSerialCommands();
-  delay(1000);
+  delay(10b00);
 }
