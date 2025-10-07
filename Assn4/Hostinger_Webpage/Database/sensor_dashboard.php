@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 // Database credentials
 $host = "localhost";
 $username = "u411050800_db_SensorsData";
-$password = "8EG15mp8317^";  
+$password = "MyCurrentPasscode";  
 $database = "u411050800_SensorsData";
 ?>
 
@@ -76,7 +76,7 @@ $database = "u411050800_SensorsData";
 // Database credentials
 $host = "localhost";
 $username = "u411050800_db_SensorsData";
-$password = "8EG15mp8317^"; 
+$password = "MyCurrentPasscode"; 
 $database = "u411050800_SensorsData";
 
 // Create connection
