@@ -26,7 +26,7 @@ function checkAuthentication() {
 // ============================================
 $host = "localhost";
 $username = "u411050800_db_SensorsData";
-$password = "8EG15mp8317^";  
+$password = "my_passcode";  
 $database = "u411050800_SensorsData";
 
 $conn = new mysqli($host, $username, $password, $database);
@@ -461,4 +461,5 @@ $conn->close();
     </div>
 </body>
 </html>
+
 
