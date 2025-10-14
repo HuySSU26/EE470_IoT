@@ -338,7 +338,7 @@ if (isset($input['node_name']) && (isset($input['temperature']) || isset($input[
         <div class="info-box">
             <h3>📊 Visualization & Data Access</h3>
             <p>Use these links to visualize and access your sensor data:</p>
-            <a href="graph.html" class="chart-link">📈 View Interactive Charts</a>
+            <a href="graph.html" class="chart-link" target="_blank">📈 View Interactive Charts</a>
             <a href="data.php" target="_blank">📄 Get JSON Data (All Nodes)</a>
             
             <!-- Node Selector for JSON -->
