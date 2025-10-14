@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 // ============================================
 // API KEY AUTHENTICATION (Only for DELETE)
 // ============================================
-define('VALID_API_KEY', 'MySecretKey2025_Sensors_98765');
+define('VALID_API_KEY', 'my_secret_key');
 
 function checkAuthentication() {
     $headers = getallheaders();
@@ -461,3 +461,4 @@ $conn->close();
     </div>
 </body>
 </html>
+
