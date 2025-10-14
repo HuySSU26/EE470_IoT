@@ -26,7 +26,7 @@ $(document).ready(function(){
         labels: x_axis,
         datasets: [
           {
-            label: 'Temperature (°C)',  // Fixed character encoding
+            label: 'Temperature (\u00B0C)',
             // GREEN COLORS - Change these for different colors
             backgroundColor: 'rgba(75, 192, 75, 0.2)',
             borderColor: 'rgba(75, 192, 75, 1)',
@@ -34,8 +34,8 @@ $(document).ready(function(){
             fill: true,
             tension: 0.4,
             data: y_axis,
-            pointRadius: 4,           // Make points visible
-            pointHoverRadius: 6       // Larger on hover
+            pointRadius: 4,
+            pointHoverRadius: 6
           }
         ]
       };
@@ -43,7 +43,7 @@ $(document).ready(function(){
       var ctx = $("#mycanvas");
 
       var lineGraph = new Chart(ctx, {
-        type: 'line',   // Change to 'bar' for bar chart
+        type: 'line',
         data: chartdata,
         options: {
           responsive: true,
@@ -57,7 +57,7 @@ $(document).ready(function(){
               beginAtZero: true,
               title: {
                 display: true,
-                text: 'Temperature (°C)'  // Fixed character encoding
+                text: 'Temperature (\u00B0C)'
               }
             },
             x: {
@@ -74,13 +74,13 @@ $(document).ready(function(){
             },
             title: {
               display: true,
-              text: 'Sensor ' + chartNode  // Dynamic title based on selected node
+              text: 'Sensor ' + chartNode
             },
             tooltip: {
               enabled: true,
               callbacks: {
                 label: function(context) {
-                  return 'Temperature: ' + context.parsed.y.toFixed(2) + '°C';
+                  return 'Temperature: ' + context.parsed.y.toFixed(2) + '\u00B0C';
                 }
               }
             }
@@ -92,90 +92,6 @@ $(document).ready(function(){
       console.log("Error loading chart data:", error);
       console.log("Status:", status);
       console.log("Response:", xhr.responseText);
-    }
-  });
-});$(document).ready(function(){
-  // Get the chart node from the page's data attribute or window variable
-  // This will be set by sensor_dashboard.php
-  var chartNode = window.selectedChartNode || 'node_1';  // Fallback to node_1 if not set
-  
-  $.ajax({
-    url: "https://huynguyen.co/Chartjs/sensor_dashboard.php?format=json&node=" + chartNode,
-    method: "GET",
-    success: function(data) {
-      console.log(data);
-      
-      var timeLabels = [];  // For x-axis (time)
-      var temperatureData = [];  // For y-axis (temperature)
-
-      for(var i in data) {
-        // Extract just the time part (HH:MM:SS) from timestamp
-        var timestamp = data[i].time_received;
-        var timeOnly = timestamp.split(' ')[1]; // Get time portion
-        timeLabels.push(timeOnly);
-        
-        // Get temperature value
-        temperatureData.push(data[i].temperature);
-      }
-
-      var chartdata = {
-        labels: timeLabels,
-        datasets: [
-          {
-            label: 'Temperature (°C)', // Chart legend label
-            
-            // GREEN COLORS - Change these for different colors
-            backgroundColor: 'rgba(75, 192, 75, 0.2)',  // Light green fill (transparent)
-            borderColor: 'rgba(75, 192, 75, 1)',        // Dark green line (solid)
-            
-            // Line styling
-            borderWidth: 2,           // Line thickness
-            fill: true,               // Fill area under line
-            tension: 0.4,             // Curve smoothness (0 = straight, 0.4 = smooth)
-            
-            data: temperatureData
-          }
-        ]
-      };
-
-      var ctx = $("#mycanvas");
-
-      var lineGraph = new Chart(ctx, {
-        type: 'line',   // CHANGED FROM 'bar' TO 'line'
-        data: chartdata,
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Temperature (°C)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Time'
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              display: true,
-              position: 'top'
-            },
-            title: {
-              display: true,
-              text: 'Sensor ' + chartNode  // Chart title
-            }
-          }
-        }
-      });
-    },
-    error: function(data) {
-      console.log("Error loading chart data:", data);
     }
   });
 });
