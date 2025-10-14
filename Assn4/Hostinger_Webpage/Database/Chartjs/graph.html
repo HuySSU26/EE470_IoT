@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SSU IoT Lab - Sensor Chart</title>
+  <style type="text/css">
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #003366;
+      margin-bottom: 30px;
+    }
+    
+    .node-selector {
+      text-align: center;
+      margin: 20px 0;
+      padding: 15px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .node-selector label {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    
+    .node-selector select {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    
+    .node-selector button {
+      padding: 8px 20px;
+      margin-left: 10px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .node-selector button:hover {
+      background-color: #0052a3;
+    }
+    
+    #chart-container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>SSU IoT Lab - Sensor Data Visualization</h1>
+  
+  <!-- Node Selector -->
+  <div class="node-selector">
+    <label for="nodeSelect">Select Sensor Node:</label>
+    <select id="nodeSelect">
+      <option value="node_1">Node 1</option>
+      <option value="node_2">Node 2</option>
+      <option value="node_3">Node 3</option>
+      <option value="node_4">Node 4</option>
+      <option value="node_5">Node 5</option>
+    </select>
+    <button onclick="updateChart()">Show Chart</button>
+    <a id="jsonLink" href="#" target="_blank" style="margin-left: 10px; padding: 8px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">View JSON Data</a>
+  </div>
+  
+  <!-- Chart Container -->
+  <div id="chart-container">
+    <canvas id="mycanvas"></canvas>
+  </div>
+
+  <!-- JavaScript Libraries -->
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <script>
+    // Function to update chart when node selection changes
+    function updateChart() {
+      var selectedNode = document.getElementById('nodeSelect').value;
+      // Redirect to the same page with the node parameter
+      window.location.href = 'graph.html?node=' + selectedNode;
+    }
+    
+    // Update JSON link and dropdown selection on page load
+    function updateJsonLink() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var node = urlParams.get('node') || 'node_1';
+      
+      // Update JSON link
+      document.getElementById('jsonLink').href = 'data.php?node=' + node;
+      
+      // Update dropdown selection to match current node
+      document.getElementById('nodeSelect').value = node;
+      
+      console.log("Current node:", node);
+    }
+    
+    // Run on page load
+    updateJsonLink();
+  </script>
+  
+  <!-- Load app.js to create the chart -->
+  <script type="text/javascript" src="app.js"></script>
+</body>
+</html>
