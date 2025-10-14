@@ -7,7 +7,7 @@ ini_set('display_errors', 1);
 // ============================================
 // Generate your API key using: https://www.uuidgenerator.net/
 // Or create a random string: bin2hex(random_bytes(32))
-define('VALID_API_KEY', 'MySecretKey2025_Sensors_98765');
+define('VALID_API_KEY', 'my_secret_passcode');
 
 // Check for API Key in headers
 $headers = getallheaders();
@@ -35,7 +35,7 @@ if ($api_key !== VALID_API_KEY && $bearer_token !== VALID_API_KEY) {
 // ============================================
 $host = "localhost";
 $username = "u411050800_db_SensorsData";
-$password = "8EG15mp8317^";  
+$password = "my_passcode";  
 $database = "u411050800_SensorsData";
 
 $conn = new mysqli($host, $username, $password, $database);
@@ -278,4 +278,5 @@ if (isset($input['node_name']) && (isset($input['temperature']) || isset($input[
 }
 
 $conn->close();
+
 ?>
