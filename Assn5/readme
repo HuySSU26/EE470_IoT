@@ -1,1 +1,26 @@
+Assn5 folder contains finished working codes for C programing language class and struct exercise.
+Assn5 folder also contain codes for ESP8266 programing for temp/humidity sensing (ESP8266_DHT11_Data_Logging) and data visualization (Chartjs)
+
+Exercise Conclusion:
+
+The activities included in this assignment provide  comprehensive hands-on experience in developing an IoT based sensing and data logging system using 
+the ESP8266 microcontroller with different sensors and switches.   The most significant learning outcomes are the modular software architecture  and 
+non-blocking programming pattern.  Rather than creating monolithic code in a single file, we can implement a clean separation of programing objects across
+multiple modules (config, switches, sensors, time_client, tx, leds, net, errors), each with its own header (.h) and implementation (.cpp) files, which make 
+testing and maintaining the code simpler.  Besides, the modular approach makes the repurposing of the individual code blocks easier.   I also learn critical 
+concepts like software debouncing for mechanical switches, lazy initialization for NTP synchronization, event-driven architecture, and state management using 
+static variables, which are essential patterns for responsive embedded applications that don’t block program execution.
+
+The networking and time synchronization challenges proved particularly interesting and educational.  I initially attempted to use  the web-based time API 
+(timeapi.io and/or worldtimeapi.org) as recommended, which consistently failed with HTTP errors (-5, 404) due to the ESP8266’s limited resources and SSL handshake 
+difficulties.  Thus, I chose to employ NTP (Network Time Protocol) combined with the standard C ‘time.h’ library for a more reliable and faster time synchronization 
+solution.  Through these activities I learned a powerful lesson in choosing appropriate technologies for resource constrained devices.  I also gained a better 
+understanding of POSIX timezone strings and  the complexity of simple timestamps displaying tasks  in terms of automatic daylight saving time handling.
+
+I found debugging hardware issues, interpreting error codes, reading and fixing compilation errors to be particularly engaging.  I learned the basics of building 
+a full-stack IoT system through the integration of multiple systems (ESP8266 firmware, MySQL database, PHP backend, web dashboard with Chart.js data visualization). 
+Learning to implement duplicate data prevention through hash algorithms, manage activity counters across database transactions, format ISO 8601 timestamps with 
+timezone offsets, and provide LED visual feedback for successful transmissions  greatly contributed to my understanding of how a properly developed IoT system should operate.  
+Troubleshooting failures (WiFi, timeouts, sensor NaN errors, JSON parsing issues…) and systematically resolving them with correct directives (#include), pin configurations, 
+and error handling was an invaluable lesson for me as it helps with the  developing of problem solving skills essential to an Electrical Engineer. 
 
