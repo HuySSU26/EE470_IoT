@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT Course - Unified Control Dashboard</title>
+  <style>
+    :root{
+      --green:#1e8e3e;
+      --muted:#6b7280;
+      --panel:#ffffff;
+      --border:#e5e7eb;
+      --note-bg:#fff7e6;
+      --note-br:#ffe6b3;
+      --blue:#1d4ed8;
+      --red:#d32f2f;
+      --green-bright:#388e3c;
+      --blue-bright:#1976d2;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;background:#f7f7f7;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111827}
+    
+    /* Top header */
+    .ssu-header{
+      color:var(--green);
+      background:#e8f5ec;
+      border:1px solid #cfead7;
+      border-radius:10px;
+      text-align:center;
+      padding:12px;
+      font-weight:700;
+      font-size:clamp(18px,2.5vw,24px);
+      margin:15px auto 10px;
+      max-width:1200px;
+    }
+
+    /* Main container */
+    .container{
+      max-width:1200px;
+      margin:0 auto;
+      padding:15px;
+    }
+
+    /* Page title */
+    h1{
+      font-size:clamp(20px,3vw,28px);
+      margin:15px 0;
+      color:#111827;
+    }
+
+    /* System info note */
+    .note{
+      background:var(--note-bg);
+      border:1px solid var(--note-br);
+      border-radius:10px;
+      padding:12px 15px;
+      margin:10px 0 15px;
+      color:#444;
+      font-size:14px;
+      line-height:1.5;
+    }
+
+    /* Two-column layout for LED and RGB sections */
+    .control-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:20px;
+      margin:20px 0;
+    }
+
+    @media (max-width: 768px) {
+      .control-grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+    /* Card styling */
+    .card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:20px;
+      box-shadow:0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .card-title{
+      font-size:18px;
+      font-weight:700;
+      margin-bottom:15px;
+      color:#111827;
+    }
+
+    /* LED Control Styles */
+    .led-controls{
+      display:flex;
+      flex-direction:column;
+      gap:15px;
+    }
+
+    .led-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      background:#f9fafb;
+      border-radius:8px;
+    }
+
+    .led-label{
+      font-weight:600;
+      min-width:100px;
+      font-size:15px;
+    }
+
+    .led-buttons{
+      display:flex;
+      gap:8px;
+      flex:1;
+    }
+
+    button{
+      padding:8px 20px;
+      font-weight:700;
+      border-radius:8px;
+      cursor:pointer;
+      border:2px solid #111827;
+      background:#fff;
+      transition:all .2s ease;
+      font-size:14px;
+    }
+
+    .btn-on{
+      border-color:#2e7d32;
+    }
+    .btn-on:hover{
+      background:#f0fff3;
+    }
+
+    .btn-off{
+      border-color:#c62828;
+    }
+    .btn-off:hover{
+      background:#fff5f5;
+    }
+
+    .status-dot{
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      border:1px solid #d1d5db;
+      margin-left:auto;
+    }
+    .status-dot.on{
+      background:#ffd400;
+      box-shadow:0 0 10px rgba(255,212,0,.7);
+    }
+    .status-dot.off{
+      background:#6b7280;
+    }
+
+    /* RGB Control Styles */
+    .rgb-controls{
+      display:flex;
+      flex-direction:column;
+      gap:15px;
+    }
+
+    .slider-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px;
+      background:#f9fafb;
+      border-radius:8px;
+    }
+
+    .slider-label{
+      font-size:14px;
+      min-width:80px;
+      font-weight:600;
+    }
+
+    .slider-label.red{color:var(--red)}
+    .slider-label.green{color:var(--green-bright)}
+    .slider-label.blue{color:var(--blue-bright)}
+
+    input[type="range"]{
+      flex:1;
+      height:8px;
+      border-radius:4px;
+      outline:none;
+      -webkit-appearance:none;
+      cursor:pointer;
+    }
+
+    input[type="range"].red{
+      background:linear-gradient(to right, #000 0%, #ff0000 100%);
+    }
+
+    input[type="range"].green{
+      background:linear-gradient(to right, #000 0%, #00ff00 100%);
+    }
+
+    input[type="range"].blue{
+      background:linear-gradient(to right, #000 0%, #0000ff 100%);
+    }
+
+    input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance:none;
+      width:20px;
+      height:20px;
+      border-radius:50%;
+      background:white;
+      cursor:pointer;
+      border:3px solid #333;
+      box-shadow:0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb{
+      width:20px;
+      height:20px;
+      border-radius:50%;
+      background:white;
+      cursor:pointer;
+      border:3px solid #333;
+      box-shadow:0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .value-display{
+      min-width:35px;
+      text-align:right;
+      font-weight:bold;
+      font-size:15px;
+    }
+
+    .color-preview{
+      margin-top:15px;
+      padding:15px;
+      background:#f9fafb;
+      border-radius:8px;
+    }
+
+    .color-preview-label{
+      font-size:14px;
+      font-weight:600;
+      margin-bottom:8px;
+    }
+
+    .color-box{
+      width:100%;
+      height:60px;
+      border:2px solid #333;
+      border-radius:8px;
+      transition:background-color 0.2s;
+    }
+
+    .rgb-submit{
+      margin-top:15px;
+      width:100%;
+      background:white;
+      border:2px solid #333;
+      padding:12px;
+      font-size:15px;
+      font-weight:bold;
+      cursor:pointer;
+      border-radius:8px;
+      transition:all 0.2s;
+    }
+
+    .rgb-submit:hover{
+      background:#f0f0f0;
+    }
+
+    /* Status section */
+    .status-card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:20px;
+      margin:20px 0;
+      box-shadow:0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .status-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+      gap:15px;
+      margin-top:15px;
+    }
+
+    .status-item{
+      padding:12px;
+      background:#f9fafb;
+      border-radius:8px;
+    }
+
+    .status-item-label{
+      font-size:13px;
+      color:var(--muted);
+      margin-bottom:5px;
+    }
+
+    .status-item-value{
+      font-size:16px;
+      font-weight:700;
+      color:#111827;
+    }
+
+    /* Links */
+    .link-card{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:15px;
+      margin:15px 0;
+    }
+
+    .link-card a{
+      color:var(--blue);
+      text-decoration:none;
+      word-break:break-all;
+    }
+
+    .link-card a:hover{
+      text-decoration:underline;
+    }
+
+    /* Toast message */
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:20px;
+      transform:translateX(-50%);
+      display:none;
+      padding:12px 20px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);
+      z-index:1000;
+      min-width:250px;
+      text-align:center;
+    }
+
+    .toast.success{
+      background:#e8f5e9;
+      border-color:#c8e6c9;
+      color:#2e7d32;
+    }
+
+    .toast.error{
+      background:#ffebee;
+      border-color:#ffcdd2;
+      color:#c62828;
+    }
+
+    .toast.show{
+      display:block;
+      animation:slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp{
+      from{
+        transform:translateX(-50%) translateY(100px);
+        opacity:0;
+      }
+      to{
+        transform:translateX(-50%) translateY(0);
+        opacity:1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ssu-header">IoT Course - Unified Control Dashboard</div>
+
+  <div class="container">
+    <h1>ESP8266 Control Panel</h1>
+
+    <div class="note">
+      <b>📡 System Info:</b> Microcontroller checks server every 2 minutes, or press GPIO0 button for immediate update. Use GPIO16 button to trigger LED/RGB status check and send sensor data to Slack.
+    </div>
+
+    <!-- Two-column layout for LED and RGB controls -->
+    <div class="control-grid">
+      <!-- LED Control Section -->
+      <div class="card">
+        <div class="card-title">💡 LED Control (Part 2A)</div>
+        
+        <div class="led-controls">
+          <div class="led-row">
+            <span class="led-label">LED1 (GPIO12):</span>
+            <div class="led-buttons">
+              <button class="btn-on" onclick="controlLED('LED1','ON')">Turn ON</button>
+              <button class="btn-off" onclick="controlLED('LED1','OFF')">Turn OFF</button>
+            </div>
+            <span id="led1-dot" class="status-dot off" aria-hidden="true"></span>
+          </div>
+
+          <div class="led-row">
+            <span class="led-label">LED2 (GPIO13):</span>
+            <div class="led-buttons">
+              <button class="btn-on" onclick="controlLED('LED2','ON')">Turn ON</button>
+              <button class="btn-off" onclick="controlLED('LED2','OFF')">Turn OFF</button>
+            </div>
+            <span id="led2-dot" class="status-dot off" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RGB Control Section -->
+      <div class="card">
+        <div class="card-title">🎨 RGB LED Control (Part 2B)</div>
+        
+        <div class="rgb-controls">
+          <div class="slider-row">
+            <label class="slider-label red">Red:</label>
+            <input type="range" 
+                   class="red"
+                   id="sliderR" 
+                   min="0" 
+                   max="255" 
+                   value="0"
+                   oninput="updateValue('R', this.value); updatePreview()">
+            <span class="value-display" id="valueR">0</span>
+          </div>
+
+          <div class="slider-row">
+            <label class="slider-label green">Green:</label>
+            <input type="range" 
+                   class="green"
+                   id="sliderG" 
+                   min="0" 
+                   max="255" 
+                   value="0"
+                   oninput="updateValue('G', this.value); updatePreview()">
+            <span class="value-display" id="valueG">0</span>
+          </div>
+
+          <div class="slider-row">
+            <label class="slider-label blue">Blue:</label>
+            <input type="range" 
+                   class="blue"
+                   id="sliderB" 
+                   min="0" 
+                   max="255" 
+                   value="0"
+                   oninput="updateValue('B', this.value); updatePreview()">
+            <span class="value-display" id="valueB">0</span>
+          </div>
+
+          <div class="color-preview">
+            <div class="color-preview-label">Color Preview:</div>
+            <div class="color-box" id="colorBox" style="background-color: rgb(0, 0, 0);"></div>
+          </div>
+
+          <button class="rgb-submit" onclick="submitRGB()">Submit RGB Values</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="status-card">
+      <div class="card-title">📊 Current Status</div>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="status-item-label">LED1 Status</div>
+          <div class="status-item-value" id="led1-status">—</div>
+        </div>
+        <div class="status-item">
+          <div class="status-item-label">LED2 Status</div>
+          <div class="status-item-value" id="led2-status">—</div>
+        </div>
+        <div class="status-item">
+          <div class="status-item-label">RGB Values</div>
+          <div class="status-item-value" id="rgb-status">R:0 G:0 B:0</div>
+        </div>
+        <div class="status-item">
+          <div class="status-item-label">Last Updated</div>
+          <div class="status-item-value" id="timestamp">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="link-card">
+      <b>🔗 Quick Access Links:</b><br>
+      <a href="https://huynguyen.co/result.txt" target="_blank">LED Status File (result.txt)</a> | 
+      <a href="https://huynguyen.co/rgb_value.txt" target="_blank">RGB Values File (rgb_value.txt)</a> | 
+      <a href="https://huynguyen.co/sensor_dashboard.php" target="_blank">Sensor Dashboard</a>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const LED_API = 'https://huynguyen.co/led_control.php';
+    const RGB_API = 'https://huynguyen.co/mySlider';
+
+    let sending = false;
+    let updating = false;
+
+    // Show toast notification
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => {
+        toast.className = 'toast';
+      }, 3000);
+    }
+
+    // Update status dot
+    function setDot(id, isOn) {
+      const el = document.getElementById(id);
+      el.className = 'status-dot ' + (isOn ? 'on' : 'off');
+    }
+
+    // Control LED (Part 2A)
+    async function controlLED(led, state) {
+      if (sending) return;
+      sending = true;
+
+      try {
+        const payload = {};
+        payload[led.toLowerCase()] = state;
+
+        const res = await fetch(LED_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          cache: 'no-store',
+          body: new URLSearchParams(payload).toString()
+        });
+
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          showToast(`✓ ${led} ${state}`, 'success');
+          updateLEDStatus(data);
+        } else {
+          showToast(`✗ ${data.message || 'Error'}`, 'error');
+        }
+      } catch (e) {
+        showToast('✗ Network error', 'error');
+        console.error(e);
+      } finally {
+        sending = false;
+      }
+    }
+
+    // Update LED status display
+    function updateLEDStatus(data) {
+      if (data.led1) {
+        document.getElementById('led1-status').textContent = data.led1;
+        setDot('led1-dot', data.led1 === 'ON');
+      }
+      if (data.led2) {
+        document.getElementById('led2-status').textContent = data.led2;
+        setDot('led2-dot', data.led2 === 'ON');
+      }
+      if (data.timestamp) {
+        document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+      }
+    }
+
+    // Fetch LED status
+    async function fetchLEDStatus() {
+      if (updating) return;
+      updating = true;
+
+      try {
+        const res = await fetch(LED_API + '?t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          updateLEDStatus(data);
+        }
+      } catch (e) {
+        console.error('LED status fetch error:', e);
+      } finally {
+        updating = false;
+      }
+    }
+
+    // Update slider value display
+    function updateValue(color, value) {
+      document.getElementById('value' + color).textContent = value;
+    }
+
+    // Update color preview
+    function updatePreview() {
+      const r = document.getElementById('sliderR').value;
+      const g = document.getElementById('sliderG').value;
+      const b = document.getElementById('sliderB').value;
+
+      const colorBox = document.getElementById('colorBox');
+      colorBox.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+
+      document.getElementById('rgb-status').textContent = `R:${r} G:${g} B:${b}`;
+    }
+
+    // Submit RGB values (Part 2B)
+    async function submitRGB() {
+      if (sending) return;
+      sending = true;
+
+      const r = document.getElementById('sliderR').value;
+      const g = document.getElementById('sliderG').value;
+      const b = document.getElementById('sliderB').value;
+
+      try {
+        const formData = new FormData();
+        formData.append('sliderR', r);
+        formData.append('sliderG', g);
+        formData.append('sliderB', b);
+        formData.append('submit', '1');
+
+        const res = await fetch(RGB_API, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          showToast(`✓ RGB values submitted: R=${r}, G=${g}, B=${b}`, 'success');
+          updatePreview();
+        } else {
+          showToast('✗ Failed to submit RGB values', 'error');
+        }
+      } catch (e) {
+        showToast('✗ Network error', 'error');
+        console.error(e);
+      } finally {
+        sending = false;
+      }
+    }
+
+    // Fetch current RGB values
+    async function fetchRGBValues() {
+      try {
+        const res = await fetch('https://huynguyen.co/rgb_proxy.php?t=' + Date.now());
+        const text = await res.text();
+
+        if (text && text.indexOf(',') > 0) {
+          const values = text.split(',');
+          if (values.length === 3) {
+            const r = parseInt(values[0]) || 0;
+            const g = parseInt(values[1]) || 0;
+            const b = parseInt(values[2]) || 0;
+
+            document.getElementById('sliderR').value = r;
+            document.getElementById('sliderG').value = g;
+            document.getElementById('sliderB').value = b;
+
+            updateValue('R', r);
+            updateValue('G', g);
+            updateValue('B', b);
+            updatePreview();
+          }
+        }
+      } catch (e) {
+        console.error('RGB fetch error:', e);
+      }
+    }
+
+    // Initialize
+    fetchLEDStatus();
+    fetchRGBValues();
+
+    // Auto-refresh every 4 seconds
+    setInterval(() => {
+      fetchLEDStatus();
+      fetchRGBValues();
+    }, 4000);
+  </script>
+</body>
+</html>
