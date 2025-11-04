@@ -1,0 +1,391 @@
+<?php
+/**
+ * Three Slider RGB Control - mySlider.php
+ * Saves RGB values to rgb_value.txt
+ * Format: R,G,B (e.g., 255,128,64)
+ * Location: https://huynguyen.co/rgb_value.txt
+ */
+
+// Configuration
+date_default_timezone_set('America/Los_Angeles');
+$dataFile = __DIR__ . '/rgb_value.txt';
+
+// Initialize data file if it doesn't exist
+if (!file_exists($dataFile)) {
+    file_put_contents($dataFile, "0,0,0");
+    @chmod($dataFile, 0666);
+}
+
+// Handle form submission
+$message = '';
+$messageType = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
+    $sliderR = isset($_POST['sliderR']) ? intval($_POST['sliderR']) : 0;
+    $sliderG = isset($_POST['sliderG']) ? intval($_POST['sliderG']) : 0;
+    $sliderB = isset($_POST['sliderB']) ? intval($_POST['sliderB']) : 0;
+    
+    // Validate values (0-255)
+    $sliderR = max(0, min(255, $sliderR));
+    $sliderG = max(0, min(255, $sliderG));
+    $sliderB = max(0, min(255, $sliderB));
+    
+    // Save to file with proper comma separation
+    $content = "$sliderR,$sliderG,$sliderB";
+    $success = @file_put_contents($dataFile, $content);
+    
+    if ($success !== false) {
+        @chmod($dataFile, 0666);
+        $message = "✓ RGB values submitted successfully! Red: $sliderR, Green: $sliderG, Blue: $sliderB";
+        $messageType = 'success';
+    } else {
+        $message = "✗ Error: Failed to save values. Check file permissions.";
+        $messageType = 'error';
+    }
+}
+
+// Read current values
+$currentValues = @file_get_contents($dataFile);
+if ($currentValues !== false) {
+    $values = explode(',', trim($currentValues));
+    $currentR = isset($values[0]) ? intval($values[0]) : 0;
+    $currentG = isset($values[1]) ? intval($values[1]) : 0;
+    $currentB = isset($values[2]) ? intval($values[2]) : 0;
+} else {
+    $currentR = 0;
+    $currentG = 0;
+    $currentB = 0;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Course - RGB Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border: 2px solid #333;
+            padding: 30px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2e7d32;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        
+        .instruction {
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+        
+        .slider-group {
+            margin: 20px 0;
+        }
+        
+        .slider-row {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            gap: 12px;
+        }
+        
+        .slider-label {
+            font-size: 14px;
+            min-width: 110px;
+            font-weight: 600;
+        }
+        
+        .slider-label.red { color: #d32f2f; }
+        .slider-label.green { color: #388e3c; }
+        .slider-label.blue { color: #1976d2; }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"].red {
+            background: linear-gradient(to right, #000 0%, #ff0000 100%);
+        }
+        
+        input[type="range"].green {
+            background: linear-gradient(to right, #000 0%, #00ff00 100%);
+        }
+        
+        input[type="range"].blue {
+            background: linear-gradient(to right, #000 0%, #0000ff 100%);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 3px solid #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 3px solid #333;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .value-display {
+            min-width: 35px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        
+        .button-container {
+            margin: 25px 0;
+        }
+        
+        .submit-btn {
+            background: white;
+            border: 2px solid #333;
+            padding: 12px 35px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .submit-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .values-display {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .values-display strong {
+            font-weight: 600;
+        }
+        
+        .color-preview {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .color-preview-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .color-box {
+            width: 100%;
+            height: 60px;
+            border: 2px solid #333;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .file-link {
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .file-link a {
+            color: #2196F3;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        
+        .file-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .message {
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff8e1;
+            border: 1px solid #ffecb3;
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .note strong {
+            color: #f57c00;
+        }
+        
+        .note code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IoT Course - RGB Control</h1>
+        
+        <p class="instruction">Adjust the RGB sliders and submit the values</p>
+        
+        <form method="POST" action="">
+            <div class="slider-group">
+                <div class="slider-row">
+                    <label class="slider-label red">Red (0-255):</label>
+                    <input type="range" 
+                           class="red"
+                           id="sliderR" 
+                           name="sliderR" 
+                           min="0" 
+                           max="255" 
+                           value="<?php echo $currentR; ?>"
+                           oninput="updateValue('sliderR', this.value); updatePreview()">
+                    <span class="value-display" id="valueR"><?php echo $currentR; ?></span>
+                </div>
+                
+                <div class="slider-row">
+                    <label class="slider-label green">Green (0-255):</label>
+                    <input type="range" 
+                           class="green"
+                           id="sliderG" 
+                           name="sliderG" 
+                           min="0" 
+                           max="255" 
+                           value="<?php echo $currentG; ?>"
+                           oninput="updateValue('sliderG', this.value); updatePreview()">
+                    <span class="value-display" id="valueG"><?php echo $currentG; ?></span>
+                </div>
+                
+                <div class="slider-row">
+                    <label class="slider-label blue">Blue (0-255):</label>
+                    <input type="range" 
+                           class="blue"
+                           id="sliderB" 
+                           name="sliderB" 
+                           min="0" 
+                           max="255" 
+                           value="<?php echo $currentB; ?>"
+                           oninput="updateValue('sliderB', this.value); updatePreview()">
+                    <span class="value-display" id="valueB"><?php echo $currentB; ?></span>
+                </div>
+            </div>
+            
+            <div class="color-preview">
+                <div class="color-preview-label">Color Preview:</div>
+                <div class="color-box" id="colorBox" style="background-color: rgb(<?php echo $currentR; ?>, <?php echo $currentG; ?>, <?php echo $currentB; ?>);"></div>
+            </div>
+            
+            <div class="button-container">
+                <button type="submit" name="submit" class="submit-btn">Submit RGB Values</button>
+            </div>
+        </form>
+        
+        <?php if ($message): ?>
+        <div class="message <?php echo $messageType; ?>">
+            <?php echo htmlspecialchars($message); ?>
+        </div>
+        <?php endif; ?>
+        
+        <div class="values-display">
+            <strong>Current RGB Values:</strong><br>
+            Red: <strong><?php echo $currentR; ?></strong><br>
+            Green: <strong><?php echo $currentG; ?></strong><br>
+            Blue: <strong><?php echo $currentB; ?></strong>
+        </div>
+        
+        <div class="file-link">
+            Check the file: <a href="rgb_value.txt" target="_blank">https://huynguyen.co/rgb_value.txt</a>
+        </div>
+        
+        <div class="note">
+            <strong>💡 System Info:</strong> Microcontroller will read RGB values from rgb_value.txt file. 
+            Values are stored as: <code>R,G,B</code> (e.g., <code>255,128,64</code>)
+        </div>
+    </div>
+    
+    <script>
+        // Update displayed value as slider moves
+        function updateValue(sliderId, value) {
+            const valueId = sliderId.replace('slider', 'value');
+            document.getElementById(valueId).textContent = value;
+        }
+        
+        // Update color preview in real-time
+        function updatePreview() {
+            const r = document.getElementById('sliderR').value;
+            const g = document.getElementById('sliderG').value;
+            const b = document.getElementById('sliderB').value;
+            
+            const colorBox = document.getElementById('colorBox');
+            colorBox.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        // Initialize preview on page load
+        updatePreview();
+    </script>
+</body>
+</html>
