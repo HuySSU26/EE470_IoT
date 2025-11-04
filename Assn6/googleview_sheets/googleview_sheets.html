@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrical Engineering @ Sonoma State University - IoT Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            padding: 8px;
+        }
+        
+        .container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+            flex-shrink: 0;
+        }
+        
+        h1 {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+        
+        .subtitle {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .source-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #4285f4;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.7em;
+            margin-left: 10px;
+        }
+        
+        /* ... rest of styles same as ultra-compact version ... */
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .left-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+        
+        .chart-container {
+            background: linear-gradient(135deg, #a8e6cf 0%, #dcedc8 100%);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        .chart-title {
+            font-size: 1em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .chart-wrapper {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+        
+        #sensorChart {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .data-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        
+        .data-summary-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .data-summary-label {
+            font-size: 0.7em;
+            color: #7f8c8d;
+            margin-bottom: 2px;
+        }
+        
+        .data-summary-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .right-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+            justify-content: space-evenly;
+        }
+        
+        .gauge-wrapper {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 2px solid #e0e0e0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 0;
+        }
+        
+        .gauge-wrapper:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            border-color: #667eea;
+        }
+        
+        .gauge-title {
+            font-size: 0.95em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .gauge {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            margin: 5px auto;
+        }
+        
+        .gauge svg {
+            transform: rotate(-90deg);
+        }
+        
+        .gauge-bg {
+            fill: none;
+            stroke: #e0e0e0;
+            stroke-width: 14;
+        }
+        
+        .gauge-fill {
+            fill: none;
+            stroke-width: 14;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease, stroke 0.5s ease;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+        
+        .gauge-center {
+            fill: white;
+            stroke: #e0e0e0;
+            stroke-width: 2;
+        }
+        
+        .gauge-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .gauge-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+            line-height: 1;
+        }
+        
+        .gauge-unit {
+            font-size: 0.75em;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+        
+        .gauge-scale {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 3px;
+            padding: 0 5px;
+            font-size: 0.65em;
+            color: #7f8c8d;
+        }
+        
+        .gauge-info {
+            margin-top: 5px;
+            padding: 5px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.7em;
+            color: #555;
+        }
+        
+        .gauge-info strong {
+            color: #2c3e50;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.65em;
+            font-weight: bold;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .status-normal {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+        
+        .last-update {
+            color: #7f8c8d;
+            font-style: italic;
+            font-size: 0.75em;
+        }
+        
+        .refresh-btn {
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 18px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: 600;
+            box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.5);
+        }
+        
+        .refresh-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+        
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        .error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.95em;
+            color: #e74c3c;
+            background: #fdeaea;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Electrical Engineering @ Sonoma State University 
+                <span class="source-badge">📊 Google Sheets</span>
+            </h1>
+            <p class="subtitle">IoT Course Dashboard</p>
+        </header>
+        
+        <div id="loading" class="loading">Loading sensor data from Google Sheets</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="content" style="display: none; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <!-- Same content structure as before -->
+            <div class="main-content">
+                <div class="left-section">
+                    <div class="data-summary">
+                        <div class="data-summary-item">
+                            <div class="data-summary-label">📊 Readings</div>
+                            <div class="data-summary-value" id="total-readings">--</div>
+                        </div>
+                        <div class="data-summary-item">
+                            <div class="data-summary-label">📈 Range</div>
+                            <div class="data-summary-value" id="range-value">--</div>
+                        </div>
+                        <div class="data-summary-item">
+                            <div class="data-summary-label">📍 Source</div>
+                            <div class="data-summary-value">Sheets</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h2 class="chart-title">📊 Temperature vs Time</h2>
+                        <div class="chart-wrapper">
+                            <canvas id="sensorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="right-section">
+                    <!-- Same gauge structure ... -->
+                    <div class="gauge-wrapper">
+                        <h3 class="gauge-title">🔽 MIN</h3>
+                        <div class="gauge">
+                            <svg width="110" height="110">
+                                <circle class="gauge-bg" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-fill" id="gauge-min" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-center" cx="55" cy="55" r="38"></circle>
+                            </svg>
+                            <div class="gauge-label">
+                                <span class="gauge-value" id="min-value">--</span>
+                                <span class="gauge-unit">°C</span>
+                            </div>
+                        </div>
+                        <div class="gauge-scale">
+                            <span>0°</span>
+                            <span id="min-scale-mid">25°</span>
+                            <span id="min-scale-max">50°</span>
+                        </div>
+                        <div class="gauge-info">
+                            <strong>Lowest:</strong> <span id="min-detail">--</span>
+                        </div>
+                        <span class="status-badge status-normal" id="min-status">NORMAL</span>
+                    </div>
+                    
+                    <div class="gauge-wrapper">
+                        <h3 class="gauge-title">🔼 MAX</h3>
+                        <div class="gauge">
+                            <svg width="110" height="110">
+                                <circle class="gauge-bg" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-fill" id="gauge-max" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-center" cx="55" cy="55" r="38"></circle>
+                            </svg>
+                            <div class="gauge-label">
+                                <span class="gauge-value" id="max-value">--</span>
+                                <span class="gauge-unit">°C</span>
+                            </div>
+                        </div>
+                        <div class="gauge-scale">
+                            <span>0°</span>
+                            <span id="max-scale-mid">25°</span>
+                            <span id="max-scale-max">50°</span>
+                        </div>
+                        <div class="gauge-info">
+                            <strong>Highest:</strong> <span id="max-detail">--</span>
+                        </div>
+                        <span class="status-badge status-warning" id="max-status">ELEVATED</span>
+                    </div>
+                    
+                    <div class="gauge-wrapper">
+                        <h3 class="gauge-title">📊 AVG</h3>
+                        <div class="gauge">
+                            <svg width="110" height="110">
+                                <circle class="gauge-bg" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-fill" id="gauge-avg" cx="55" cy="55" r="48"></circle>
+                                <circle class="gauge-center" cx="55" cy="55" r="38"></circle>
+                            </svg>
+                            <div class="gauge-label">
+                                <span class="gauge-value" id="avg-value">--</span>
+                                <span class="gauge-unit">°C</span>
+                            </div>
+                        </div>
+                        <div class="gauge-scale">
+                            <span>0°</span>
+                            <span id="avg-scale-mid">25°</span>
+                            <span id="avg-scale-max">50°</span>
+                        </div>
+                        <div class="gauge-info">
+                            <strong>Mean:</strong> <span id="avg-detail">--</span>
+                        </div>
+                        <span class="status-badge status-normal" id="avg-status">OPTIMAL</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="last-update">
+                    Last updated: <span id="last-update-time">--</span>
+                </div>
+                <button class="refresh-btn" onclick="fetchData()">🔄 Refresh</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================
+        // CONFIGURATION - UPDATE THIS GOOGLE SHEET ID
+        // ============================================
+        // Find this in your published Google Sheet URL
+        // URL looks like: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/pubhtml
+        const GOOGLE_SHEET_ID = '1vHjjeqxT0yMhjoSm_357ELpSxf2Cowc5pgbBRYrdQg4';
+        const SHEET_NAME = 'Sheet1';  // Or your sheet name
+        
+        // Construct CSV export URL
+        const API_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+        // ============================================
+        
+        let chart = null;
+        
+        // Function to fetch data from Google Sheets
+        async function fetchData() {
+            try {
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('content').style.display = 'none';
+                
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const csvText = await response.text();
+                
+                // Parse CSV using PapaParse
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        processData(results.data);
+                    },
+                    error: function(error) {
+                        throw new Error('CSV parsing error: ' + error.message);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'flex';
+                document.getElementById('error').textContent = 
+                    '⚠️ Error loading data from Google Sheets: ' + error.message + 
+                    '. Make sure your sheet is published and the ID is correct.';
+            }
+        }
+        
+        // Function to process CSV data
+        function processData(csvData) {
+            // Filter out empty rows and "Last Updated" row
+            const sensorData = csvData
+                .filter(row => row.Date && row['Sensor Value'] && row.Date !== 'Last Updated:')
+                .map(row => ({
+                    sensor_value: parseFloat(row['Sensor Value']),
+                    timestamp: row.Date
+                }));
+            
+            if (sensorData.length === 0) {
+                throw new Error('No valid data found in Google Sheet');
+            }
+            
+            displayData(sensorData);
+        }
+        
+        // Function to display data (same as before)
+        function displayData(sensorData) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'flex';
+            
+            const values = sensorData.map(item => item.sensor_value);
+            const minValue = Math.min(...values);
+            const maxValue = Math.max(...values);
+            const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+            const rangeValue = maxValue - minValue;
+            
+            document.getElementById('total-readings').textContent = sensorData.length;
+            document.getElementById('range-value').textContent = rangeValue.toFixed(1) + '°C';
+            
+            document.getElementById('min-value').textContent = minValue.toFixed(2);
+            document.getElementById('max-value').textContent = maxValue.toFixed(2);
+            document.getElementById('avg-value').textContent = avgValue.toFixed(2);
+            
+            document.getElementById('min-detail').textContent = minValue.toFixed(2) + '°C';
+            document.getElementById('max-detail').textContent = maxValue.toFixed(2) + '°C';
+            document.getElementById('avg-detail').textContent = avgValue.toFixed(2) + '°C';
+            
+            const gaugeMax = Math.ceil(maxValue * 1.2);
+            updateGaugeScale('min', gaugeMax);
+            updateGaugeScale('max', gaugeMax);
+            updateGaugeScale('avg', gaugeMax);
+            
+            updateGauge('gauge-min', minValue, gaugeMax);
+            updateGauge('gauge-max', maxValue, gaugeMax);
+            updateGauge('gauge-avg', avgValue, gaugeMax);
+            
+            updateStatus('min', minValue);
+            updateStatus('max', maxValue);
+            updateStatus('avg', avgValue);
+            
+            // Prepare chart data
+            const chartData = [...sensorData].reverse();
+            const labels = chartData.map(item => {
+                const date = new Date(item.timestamp);
+                return date.toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + ' ' + 
+                       date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            });
+            const chartValues = chartData.map(item => item.sensor_value);
+            
+            createChart(labels, chartValues);
+            
+            document.getElementById('last-update-time').textContent = new Date().toLocaleString();
+        }
+        
+        // Helper functions (same as before)
+        function updateGaugeScale(gaugeType, maxVal) {
+            const midVal = (maxVal / 2).toFixed(0);
+            document.getElementById(gaugeType + '-scale-mid').textContent = midVal + '°';
+            document.getElementById(gaugeType + '-scale-max').textContent = maxVal + '°';
+        }
+        
+        function updateGauge(gaugeId, value, maxValue) {
+            const gauge = document.getElementById(gaugeId);
+            const circumference = 2 * Math.PI * 48;
+            const percentage = Math.min(value / maxValue, 1);
+            const dashArray = `${circumference * percentage} ${circumference}`;
+            gauge.style.strokeDasharray = dashArray;
+            
+            let color;
+            if (value < 15) color = '#4A90E2';
+            else if (value < 20) color = '#4CAF50';
+            else if (value < 25) color = '#8BC34A';
+            else if (value < 30) color = '#FFC107';
+            else color = '#FF6B6B';
+            
+            gauge.style.stroke = color;
+        }
+        
+        function updateStatus(type, value) {
+            const statusElement = document.getElementById(type + '-status');
+            
+            if (value < 18) {
+                statusElement.className = 'status-badge status-normal';
+                statusElement.textContent = 'COOL';
+            } else if (value < 25) {
+                statusElement.className = 'status-badge status-normal';
+                statusElement.textContent = 'NORMAL';
+            } else if (value < 30) {
+                statusElement.className = 'status-badge status-warning';
+                statusElement.textContent = 'WARM';
+            } else {
+                statusElement.className = 'status-badge status-high';
+                statusElement.textContent = 'HOT';
+            }
+        }
+        
+        function createChart(labels, values) {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: values,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: { size: 10, weight: 'bold' },
+                                padding: 8
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Temp: ' + context.parsed.y.toFixed(2) + '°C';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(0) + '°';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: { size: 7 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initial data load
+        fetchData();
+    </script>
+</body>
+</html>
