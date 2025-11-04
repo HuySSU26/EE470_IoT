@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SSU IoT Lab - Sensor Chart</title>
+  <style type="text/css">
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #003366;
+      margin-bottom: 30px;
+    }
+    
+    .node-selector {
+      text-align: center;
+      margin: 20px 0;
+      padding: 15px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .node-selector label {
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    
+    .node-selector select {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      min-width: 120px;
+    }
+    
+    .node-selector button {
+      padding: 8px 20px;
+      margin-left: 10px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .node-selector button:hover {
+      background-color: #0052a3;
+    }
+    
+    #chart-container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 20px auto;
+    }
+    
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>SSU IoT Lab - Sensor Data Visualization</h1>
+  
+  <!-- Node Selector -->
+  <div class="node-selector">
+    <label for="nodeSelect">Select Sensor Node:</label>
+    <select id="nodeSelect">
+      <option value="">Loading nodes...</option>
+    </select>
+    <button onclick="updateChart()">Show Chart</button>
+    <a id="jsonLink" href="#" target="_blank" style="margin-left: 10px; padding: 8px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">View JSON Data</a>
+  </div>
+  
+  <!-- Chart Container -->
+  <div id="chart-container">
+    <canvas id="mycanvas"></canvas>
+  </div>
+
+  <!-- JavaScript Libraries -->
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <script>
+    // Global variable to store available nodes
+    var availableNodes = [];
+    
+    // Function to load available nodes from database
+    function loadAvailableNodes() {
+      $.ajax({
+        url: "get_nodes.php",
+        method: "GET",
+        dataType: "json",
+        success: function(nodes) {
+          availableNodes = nodes;
+          populateNodeDropdown();
+          
+          // After loading nodes, update the current selection
+          updateJsonLink();
+        },
+        error: function(xhr, status, error) {
+          console.log("Error loading nodes:", error);
+          // Fallback to hardcoded nodes if get_nodes.php doesn't exist
+          availableNodes = ['node_1', 'node_2', 'node_3', 'node_4', 'node_5'];
+          populateNodeDropdown();
+          updateJsonLink();
+        }
+      });
+    }
+    
+    // Function to populate the dropdown with available nodes
+    function populateNodeDropdown() {
+      var select = document.getElementById('nodeSelect');
+      select.innerHTML = ''; // Clear existing options
+      
+      if (availableNodes.length === 0) {
+        select.innerHTML = '<option value="">No nodes available</option>';
+        return;
+      }
+      
+      // Add each node as an option
+      availableNodes.forEach(function(node) {
+        var option = document.createElement('option');
+        option.value = node;
+        // Convert node_1 to "Node 1" for display
+        option.text = node.replace('node_', 'Node ').replace('_', ' ');
+        select.appendChild(option);
+      });
+    }
+    
+    // Function to update chart when node selection changes
+    function updateChart() {
+      var selectedNode = document.getElementById('nodeSelect').value;
+      if (selectedNode) {
+        // Redirect to the same page with the node parameter
+        window.location.href = 'graph.html?node=' + selectedNode;
+      }
+    }
+    
+    // Update JSON link and dropdown selection on page load
+    function updateJsonLink() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var node = urlParams.get('node');
+      
+      // If no node specified, use first available node
+      if (!node && availableNodes.length > 0) {
+        node = availableNodes[0];
+      }
+      
+      // Update JSON link
+      if (node) {
+        document.getElementById('jsonLink').href = 'data.php?node=' + node;
+        
+        // Update dropdown selection to match current node
+        var select = document.getElementById('nodeSelect');
+        if (select.querySelector('option[value="' + node + '"]')) {
+          select.value = node;
+        }
+      }
+      
+      console.log("Current node:", node);
+    }
+    
+    // Run on page load
+    $(document).ready(function() {
+      // Load available nodes first
+      loadAvailableNodes();
+    });
+  </script>
+  
+  <!-- Load app.js to create the chart -->
+  <script type="text/javascript" src="app.js"></script>
+</body>
+</html>
