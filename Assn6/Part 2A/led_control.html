@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IoT Course - LED Control</title>
+  <style>
+    :root{
+      --green:#1e8e3e;
+      --muted:#6b7280;
+      --panel:#ffffff;
+      --border:#e5e7eb;
+      --note-bg:#fff7e6;
+      --note-br:#ffe6b3;
+      --blue:#1d4ed8;
+    }
+    html,body{height:100%;margin:0;background:#f7f7f7;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111827}
+    /* Top header bar (new) */
+    .ssu-header{
+      color:var(--green);
+      background:#e8f5ec;
+      border:1px solid #cfead7;
+      border-radius:10px;
+      text-align:center;
+      padding:10px 12px;
+      font-weight:700;
+      font-size:clamp(16px,2.4vw,22px);
+      margin:10px auto 6px;
+      max-width:980px;
+    }
+
+    /* Wrapper we scale to fit the screen */
+    #fit-wrapper{display:flex;justify-content:center}
+    #fit-scale{transform-origin: top center}
+
+    /* Original scheme styles (kept, but slightly tightened) */
+    .container{max-width:980px;background:transparent;padding:8px}
+    h1{font-size:clamp(18px,2.6vw,24px);margin:8px 0 10px}
+    .note{
+      background:var(--note-bg);border:1px solid var(--note-br);
+      border-radius:10px;padding:10px 12px;margin:8px 0 12px;color:#444
+    }
+    .card{
+      background:var(--panel);border:1px solid var(--border);
+      border-radius:10px;padding:12px;margin:10px 0
+    }
+    .row{display:flex;align-items:center;gap:10px;margin-top:8px}
+    .label{font-weight:600;margin-bottom:6px}
+    button{
+      padding:8px 16px;font-weight:700;border-radius:8px;cursor:pointer;
+      border:2px solid #111827;background:#fff;transition:background .2s ease
+    }
+    .on{border-color:#2e7d32}.on:hover{background:#f0fff3}
+    .off{border-color:#c62828}.off:hover{background:#fff5f5}
+    .dot{width:14px;height:14px;border-radius:50%;border:1px solid #d1d5db;margin-left:6px}
+    .dot.on{background:#ffd400;box-shadow:0 0 10px rgba(255,212,0,.7)}
+    .dot.off{background:#6b7280}
+    .link a{color:var(--blue);text-decoration:none}
+    .link a:hover{text-decoration:underline}
+    .muted{color:var(--muted)}
+    .msg{
+      position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
+      display:none;padding:8px 12px;border-radius:10px;border:1px solid var(--border);
+      background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.08);z-index:10
+    }
+    .msg.success{background:#e8f5e9;border-color:#c8e6c9}
+    .msg.error{background:#ffebee;border-color:#ffcdd2}
+  </style>
+</head>
+<body>
+  <!-- New green header -->
+  <div class="ssu-header">IoT Course - Sonoma State Univeristy</div>
+
+  <!-- Everything below keeps your original sections; this wrapper auto-scales -->
+  <div id="fit-wrapper">
+    <div id="fit-scale">
+      <div class="container">
+        <h1>How to call PHP function on the click of a button?</h1>
+
+        <div class="note">
+          <b>🔔 System Info:</b> Microcontroller checks server every 2–3 minutes, or press button on GPIO0 for immediate update.
+        </div>
+
+        <!-- LED1 card -->
+        <div class="card">
+          <div class="label">LED1 Control (GPIO12):</div>
+          <div class="row">
+            <button class="on"  onclick="controlLED('LED1','ON')">Turn ON</button>
+            <button class="off" onclick="controlLED('LED1','OFF')">Turn OFF</button>
+            <span id="led1-dot" class="dot off" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <!-- LED2 card -->
+        <div class="card">
+          <div class="label">LED2 Control (GPIO13):</div>
+          <div class="row">
+            <button class="on"  onclick="controlLED('LED2','ON')">Turn ON</button>
+            <button class="off" onclick="controlLED('LED2','OFF')">Turn OFF</button>
+            <span id="led2-dot" class="dot off" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <!-- Link card -->
+        <div class="card link">
+          <b>📄 Check result.txt file:</b><br/>
+          <a href="https://huynguyen.co/result.txt" target="_blank" rel="noopener">https://huynguyen.co/result.txt</a>
+        </div>
+
+        <!-- Status card -->
+        <div class="card">
+          <div class="label">📊 Current Status:</div>
+          <div>LED1: <b id="led1-status">—</b></div>
+          <div>LED2: <b id="led2-status">—</b></div>
+          <div class="muted">Last Updated: <span id="timestamp">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="message" class="msg"></div>
+
+  <script>
+    const API_URL = 'https://huynguyen.co/led_control.php';
+
+    // --- minimal auto-fit: scale #fit-scale so everything fits in viewport ---
+    function fitToScreen(){
+      const headerH = document.querySelector('.ssu-header').offsetHeight + 12; // header + gap
+      const avail = window.innerHeight - headerH - 8; // spare padding
+      const scaleEl = document.getElementById('fit-scale');
+      scaleEl.style.transform = 'scale(1)';
+      // after resetting scale, measure real height
+      const contentH = scaleEl.getBoundingClientRect().height;
+      const ratio = Math.min(1, avail / contentH);
+      scaleEl.style.transform = `scale(${ratio})`;
+    }
+    window.addEventListener('load', fitToScreen);
+    window.addEventListener('resize', fitToScreen);
+
+    // ---- UI helpers (unchanged behavior) ----
+    let sending = false, statusUpdating = false;
+
+    function showMessage(text, type='success'){
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = 'msg ' + type;
+      el.style.display = 'block';
+      clearTimeout(showMessage._t);
+      showMessage._t = setTimeout(()=> el.style.display='none', 2500);
+    }
+    function setDot(id, on){
+      const el = document.getElementById(id);
+      el.className = 'dot ' + (on ? 'on' : 'off');
+    }
+
+    async function controlLED(led, state){
+      if (sending) return; sending = true;
+      try{
+        const payload = {}; payload[led.toLowerCase()] = state;
+        const res = await fetch(API_URL, {
+          method: 'POST', // works on most hosts
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          cache: 'no-store',
+          body: new URLSearchParams(payload).toString()
+        });
+        const data = await res.json();
+        if (data.status === 'success'){
+          showMessage(`✓ ${led} ${state}`, 'success');
+          document.getElementById('led1-status').textContent = data.led1;
+          document.getElementById('led2-status').textContent = data.led2;
+          document.getElementById('timestamp').textContent  = data.timestamp || '';
+          setDot('led1-dot', data.led1 === 'ON');
+          setDot('led2-dot', data.led2 === 'ON');
+          setTimeout(updateStatus, 200);
+        }else{
+          showMessage(`✗ ${data.message || 'Error'}`, 'error');
+        }
+      }catch(e){
+        showMessage('✗ Network error', 'error');
+        console.error(e);
+      }finally{
+        sending = false;
+      }
+    }
+
+    async function updateStatus(){
+      if (statusUpdating) return; statusUpdating = true;
+      try{
+        const res = await fetch(API_URL + '?t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        if (data.status === 'success'){
+          document.getElementById('led1-status').textContent = data.led1;
+          document.getElementById('led2-status').textContent = data.led2;
+          document.getElementById('timestamp').textContent  = data.timestamp || '';
+          setDot('led1-dot', data.led1 === 'ON');
+          setDot('led2-dot', data.led2 === 'ON');
+        }
+      }catch(e){ console.error(e); }
+      statusUpdating = false;
+    }
+
+    updateStatus();
+    setInterval(updateStatus, 4000);
+  </script>
+</body>
+</html>
