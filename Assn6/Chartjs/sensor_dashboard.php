@@ -5,14 +5,14 @@ ini_set('display_errors', 1);
 // ============================================
 // IFTTT WEBHOOK CONFIGURATION
 // ============================================
-define('IFTTT_WEBHOOK_KEY', '8RnOIAiHnVAoyOFXIZg2D');  // Replace with your actual key
+define('IFTTT_WEBHOOK_KEY', 'WEBB_HOOK_KEY');  // Replace with actual key
 define('IFTTT_EVENT_NAME', 'sensor_alert');
 define('ENABLE_IFTTT_NOTIFICATIONS', true);  // Set to false to disable notifications
 
 // ============================================
 // API KEY AUTHENTICATION (Only for DELETE)
 // ============================================
-define('VALID_API_KEY', 'MySecretKey2025_Sensors_98765');
+define('VALID_API_KEY', 'My_Secret_Key'); // Replace with actual key
 
 function checkAuthentication() {
     $headers = getallheaders();
@@ -70,7 +70,7 @@ function sendIFTTTNotification($node_name, $temperature, $humidity) {
 // ============================================
 $host = "localhost";
 $username = "u411050800_db_SensorsData";
-$password = "8EG15mp8317^";  
+$password = "my_passcode";  // Replace with actual PSK
 $database = "u411050800_SensorsData";
 
 $conn = new mysqli($host, $username, $password, $database);
@@ -599,4 +599,5 @@ $conn->close();
 
     </div>
 </body>
+
 </html>
