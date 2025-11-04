@@ -9,8 +9,8 @@
 #include <Arduino.h>
 
 // ==== Wi-Fi Configuration ====
-#define WIFI_SSID "TP-Link_C6AF"
-#define WIFI_PASS "Mistygiant753"
+#define WIFI_SSID "WIFI_SSID"        // Replace with  actual SSID
+#define WIFI_PASS "WIFI_SSID_PSK"    // Replace with  actual PSK
 
 // ==== GPIO Pin Assignments ====
 // Input Switches
