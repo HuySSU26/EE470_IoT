@@ -31,8 +31,8 @@
 #include <WiFiClientSecure.h>
 
 // ==================== WIFI CONFIGURATION ====================
-const char* WIFI_SSID     = "TP-Link_C6AF";
-const char* WIFI_PASSWORD = "Mistygiant753";
+const char* WIFI_SSID     = "WIFI_SSID";        // Replace with  actual SSID
+const char* WIFI_PASSWORD = "WIFI_SSID_PSK";    // Replace with  actual PSK
 
 // ==================== SERVER URLS ====================
 const char* LED_URL = "https://huynguyen.co/led_control.php";
@@ -505,4 +505,5 @@ void pollRGBValues() {
   }
 
   http.end();
+
 }
