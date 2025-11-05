@@ -1,6 +1,6 @@
 /*
  * ============================================================================
- * ESP8266 Integrated Control System
+ * ESP8266 Integrated Control System - AUTO-RESTART VERSION
  * ============================================================================
  * Project: Combined sensor logging and LED/RGB control system
  * Author: Huy Nguyen
@@ -61,6 +61,17 @@
  *   - Proper HTTP client setup matching RGB_main.cpp
  * 
  * ============================================================================
+ * ============================================================================
+ * Latest Version:
+ * ============================================================================
+ * Issue: Memory drops from 42KB to 14KB (not enough for SSL)
+ * Solution: Offer to restart ESP8266 to free memory before Button 1
+ * 
+ * Features:
+ * - Memory check before Button 1
+ * - Auto-restart if memory < 20KB
+ * - Manual restart command
+ * ============================================================================
  */
 
 #include <Arduino.h>
@@ -80,55 +91,76 @@
 // CONFIGURATION
 // ============================================================================
 const char* SENSOR_DASHBOARD_URL = "https://huynguyen.co/Chartjs/sensor_dashboard.php";
-const char* IFTTT_WEBHOOK_KEY = "WEBBHOOK_KEY";    // Replace with  actual key
+const char* IFTTT_WEBHOOK_KEY = "8RnOIAiHnVAoyOFXIZg2D";
 const char* IFTTT_EVENT_NAME = "sensor_alert";
 
-// ============================================================================
-// Helper: Ensure WiFi Connection
-// ============================================================================
-static void ensureWiFiConnected() {
-  if (WiFi.status() == WL_CONNECTED) return;
+// Memory management
+const int MIN_MEMORY_FOR_SSL = 20000;  // 20KB minimum
+static bool autoRestartEnabled = true;
 
-  Serial.println("[WiFi] Connecting...");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 15000) {
-    delay(250);
-    Serial.print(".");
-  }
-  Serial.println();
+// ============================================================================
+// Check and Restart if Low Memory
+// ============================================================================
+bool checkMemoryAndRestart() {
+  int freeHeap = ESP.getFreeHeap();
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("[WiFi] ✓ Connected - IP: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("[WiFi] ✗ Failed to connect");
+  Serial.print("\n[MEM] Current free heap: ");
+  Serial.print(freeHeap);
+  Serial.println(" bytes");
+  
+  if (freeHeap < MIN_MEMORY_FOR_SSL) {
+    Serial.println("\n╔════════════════════════════════════════════════╗");
+    Serial.println("║  ⚠ LOW MEMORY DETECTED!                        ║");
+    Serial.println("╠════════════════════════════════════════════════╣");
+    Serial.print("║  Free: ");
+    Serial.print(freeHeap);
+    Serial.println(" bytes (need 20,000+)          ║");
+    Serial.println("║                                                ║");
+    
+    if (autoRestartEnabled) {
+      Serial.println("║  → AUTO-RESTARTING in 3 seconds...            ║");
+      Serial.println("║     (This will free memory for SSL)           ║");
+      Serial.println("║     LEDs/RGB/Sensors will be preserved        ║");
+      Serial.println("╚════════════════════════════════════════════════╝\n");
+      
+      delay(1000);
+      Serial.println("[RESTART] 3...");
+      delay(1000);
+      Serial.println("[RESTART] 2...");
+      delay(1000);
+      Serial.println("[RESTART] 1...");
+      delay(500);
+      Serial.println("[RESTART] Rebooting now...\n");
+      
+      ESP.restart();
+      // Never returns
+    } else {
+      Serial.println("║  → Auto-restart DISABLED                      ║");
+      Serial.println("║     Button 1 will likely fail                 ║");
+      Serial.println("║     Type 'R' to restart manually              ║");
+      Serial.println("╚════════════════════════════════════════════════╝\n");
+      return false;
+    }
   }
+  
+  Serial.println("[MEM] ✓ Memory sufficient for SSL operations");
+  return true;
 }
 
 // ============================================================================
-// Transmit to Database - EXACT FORMAT FROM sensor_dashboard.php
+// Transmit to Database
 // ============================================================================
 bool transmitToDatabase(const String& timestamp, float temp, float humidity, uint32_t count) {
-  ensureWiFiConnected();
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[TX] ERROR: No WiFi");
-    return false;
-  }
-
   Serial.println("\n╔════════════════════════════════════════════════╗");
   Serial.println("║        TRANSMITTING TO DATABASE                ║");
   Serial.println("╚════════════════════════════════════════════════╝");
   
-  // Build JSON payload - EXACT format that sensor_dashboard.php expects
-  Serial.println("[TX] Building JSON payload...");
+  if (!ensureWiFi()) return false;
   
   StaticJsonDocument<512> doc;
-  doc["node"] = 1;  // Integer, not string
-  doc["temperature_C"] = temp;  // MUST be temperature_C
-  doc["humidity_pct"] = humidity;  // MUST be humidity_pct
+  doc["node"] = 1;
+  doc["temperature_C"] = temp;
+  doc["humidity_pct"] = humidity;
   doc["timestamp"] = timestamp;
   doc["activity_count"] = count;
   
@@ -138,122 +170,84 @@ bool transmitToDatabase(const String& timestamp, float temp, float humidity, uin
   Serial.print("[TX] Payload: ");
   Serial.println(jsonPayload);
 
-  // Use WiFiClientSecure - same as RGB_main.cpp
-  static WiFiClientSecure client;
-  client.setInsecure();  // Skip certificate validation
+  WiFiClientSecure* client = new WiFiClientSecure();
+  client->setInsecure();
+  client->setTimeout(15000);
 
   HTTPClient https;
   https.setTimeout(15000);
-  https.setReuse(true);  // Reuse connection
+  https.setReuse(false);
   
-  Serial.println("[TX] Connecting to server...");
-  if (!https.begin(client, SENSOR_DASHBOARD_URL)) {
-    Serial.println("[TX] ERROR: HTTPS begin failed");
+  if (!https.begin(*client, SENSOR_DASHBOARD_URL)) {
+    delete client;
     return false;
   }
   
-  // Set headers
   https.addHeader("Content-Type", "application/json");
-  https.addHeader("Accept", "application/json");
   
-  Serial.println("[TX] Sending POST request...");
   int httpCode = https.POST(jsonPayload);
   
   Serial.print("[TX] HTTP Code: ");
   Serial.println(httpCode);
   
-  String response = "";
   if (httpCode > 0) {
-    response = https.getString();
-    Serial.print("[TX] Response: ");
-    Serial.println(response);
-  } else {
-    Serial.print("[TX] Error: ");
-    Serial.println(https.errorToString(httpCode));
+    Serial.println(https.getString());
   }
 
   https.end();
+  delete client;
   
-  bool success = (httpCode == 200 || httpCode == HTTP_CODE_OK);
-  
-  if (success) {
-    Serial.println("╔════════════════════════════════════════════════╗");
-    Serial.println("║          ✓ DATA SAVED TO DATABASE             ║");
-    Serial.println("║    Google Sheets will auto-update              ║");
-    Serial.println("╚════════════════════════════════════════════════╝");
-  } else {
-    Serial.println("[TX] ✗ Failed to save data");
-  }
-
-  return success;
+  return (httpCode == 200);
 }
 
 // ============================================================================
-// IFTTT Webhook for SMS + Slack Notifications
+// IFTTT Notification
 // ============================================================================
 bool sendIFTTTNotification(const String& nodeName, float temp, float humidity) {
-  ensureWiFiConnected();
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[IFTTT] No WiFi");
-    return false;
-  }
+  if (!ensureWiFi()) return false;
 
-  Serial.println("\n[IFTTT] Sending webhook (SMS + Slack)...");
+  Serial.println("\n[IFTTT] Sending webhook...");
   
-  // Build IFTTT URL
   String url = "https://maker.ifttt.com/trigger/";
   url += IFTTT_EVENT_NAME;
   url += "/with/key/";
   url += IFTTT_WEBHOOK_KEY;
 
-  // Create JSON payload with values
   StaticJsonDocument<256> doc;
   doc["value1"] = nodeName;
-  doc["value2"] = String(temp, 1);  // Temperature with 1 decimal
-  doc["value3"] = String(humidity, 1);  // Humidity with 1 decimal
+  doc["value2"] = String(temp, 1);
+  doc["value3"] = String(humidity, 1);
   
   String payload;
   serializeJson(doc, payload);
-  
-  Serial.print("[IFTTT] Payload: ");
-  Serial.println(payload);
 
-  static WiFiClientSecure client;
-  client.setInsecure();
+  WiFiClientSecure* client = new WiFiClientSecure();
+  client->setInsecure();
+  client->setTimeout(10000);
 
   HTTPClient https;
   https.setTimeout(10000);
+  https.setReuse(false);
   
-  if (!https.begin(client, url)) {
-    Serial.println("[IFTTT] ✗ Begin failed");
+  if (!https.begin(*client, url)) {
+    delete client;
     return false;
   }
 
   https.addHeader("Content-Type", "application/json");
-  
   int code = https.POST(payload);
   
   Serial.print("[IFTTT] Code: ");
   Serial.println(code);
   
   if (code > 0) {
-    Serial.print("[IFTTT] Response: ");
     Serial.println(https.getString());
   }
 
   https.end();
+  delete client;
   
-  bool success = (code == 200 || code == HTTP_CODE_OK);
-  
-  if (success) {
-    Serial.println("[IFTTT] ✓ Notification sent");
-    Serial.println("        → SMS to +1 707-547-7017");
-    Serial.println("        → Slack #iot-sensors");
-  } else {
-    Serial.println("[IFTTT] ✗ Failed");
-  }
-  
-  return success;
+  return (code == 200);
 }
 
 // ============================================================================
@@ -262,17 +256,28 @@ bool sendIFTTTNotification(const String& nodeName, float temp, float humidity) {
 static void serialMenu() {
   if (!Serial.available()) return;
   char c = Serial.read();
-  if (c == 'T' || c == 't') {
+  
+  if (c == 'M' || c == 'm') {
     Serial.println("\n╔════════════════════════╗");
-    Serial.println("║  TIMEZONE CONFIG       ║");
+    Serial.println("║  MEMORY STATUS         ║");
     Serial.println("╚════════════════════════╝");
-    Serial.print("> ");
-    while (!Serial.available()) delay(10);
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-    if (input.length() > 0) {
-      Serial.println(setTimezone(input) ? "✓ Updated" : "✗ Invalid");
-    }
+    Serial.print("Free: ");
+    Serial.print(ESP.getFreeHeap());
+    Serial.println(" bytes");
+    Serial.print("Frag: ");
+    Serial.print(ESP.getHeapFragmentation());
+    Serial.println("%");
+    Serial.print("Need: ");
+    Serial.print(MIN_MEMORY_FOR_SSL);
+    Serial.println(" bytes for SSL");
+  } else if (c == 'R' || c == 'r') {
+    Serial.println("\n[RESTART] Manual restart requested...");
+    delay(1000);
+    ESP.restart();
+  } else if (c == 'A' || c == 'a') {
+    autoRestartEnabled = !autoRestartEnabled;
+    Serial.print("\n[AUTO-RESTART] ");
+    Serial.println(autoRestartEnabled ? "ENABLED" : "DISABLED");
   }
 }
 
@@ -294,57 +299,43 @@ void setup() {
   Serial.begin(9600);
   delay(1000);
   
-  Serial.println("\n\n");
+  Serial.println("\n\n\n");
   Serial.println("╔════════════════════════════════════════════════╗");
-  Serial.println("║   ESP8266 INTEGRATED SYSTEM v3.0 FINAL        ║");
-  Serial.println("║   Database + Sheets + SMS + Slack              ║");
+  Serial.println("║   ESP8266 AUTO-RESTART SYSTEM                  ║");
+  Serial.println("║   Restarts automatically when memory low       ║");
   Serial.println("╚════════════════════════════════════════════════╝\n");
   
-  Serial.println("[INIT] Initializing components...\n");
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(true);
+  ensureWiFi();
   
-  Serial.print("[INIT] WiFi... ");
-  WiFi.setSleep(false);  // Reduce latency
-  ensureWiFiConnected();
-  Serial.println(WiFi.status() == WL_CONNECTED ? "✓" : "✗");
-  
-  Serial.print("[INIT] Time... ");
   timeClientBegin();
-  Serial.println("✓");
-  
-  Serial.print("[INIT] Switches... ");
   switchesBegin();
-  Serial.println("✓");
-  
-  Serial.print("[INIT] DHT11... ");
-  Serial.println(sensorsBegin() ? "✓" : "✗ Check wiring!");
-  
-  Serial.print("[INIT] LEDs... ");
+  sensorsBegin();
   ledsBegin();
-  Serial.println("✓");
-  
-  Serial.print("[INIT] Control... ");
   controlBegin();
-  Serial.println("✓");
+  
+  Serial.print("\n[INIT] Free Heap: ");
+  Serial.print(ESP.getFreeHeap());
+  Serial.println(" bytes");
   
   Serial.println("\n╔════════════════════════════════════════════════╗");
   Serial.println("║              SYSTEM READY                      ║");
   Serial.println("╠════════════════════════════════════════════════╣");
-  Serial.println("║  Button 1 (GPIO0):  Log to Database           ║");
-  Serial.println("║                     → Google Sheets            ║");
-  Serial.println("║                     → SMS Notification         ║");
-  Serial.println("║                     → Slack Alert              ║");
+  Serial.println("║  Button 1: Log + Notify (auto-restart if low) ║");
+  Serial.println("║  Button 2: Check LED/RGB Status               ║");
   Serial.println("║                                                ║");
-  Serial.println("║  Button 2 (GPIO16): Check LED/RGB Status      ║");
+  Serial.println("║  Commands:                                     ║");
+  Serial.println("║  Type 'M': Memory status                      ║");
+  Serial.println("║  Type 'R': Manual restart                     ║");
+  Serial.println("║  Type 'A': Toggle auto-restart                ║");
   Serial.println("║                                                ║");
-  Serial.println("║  Auto-Poll: Every 10 seconds                  ║");
+  Serial.println("║  Auto-Poll: Every 10 seconds ✓                ║");
   Serial.println("╚════════════════════════════════════════════════╝\n");
   
-  // Ready blink
   blinkAsync(PIN_LED1, 100, 300);
   delay(400);
   blinkAsync(PIN_LED2, 100, 300);
-  
-  Serial.println("[INFO] Ready for operation!\n");
 }
 
 // ============================================================================
@@ -357,7 +348,7 @@ void loop() {
   handleAutoPoll();
   
   // ══════════════════════════════════════════════════════════════
-  // BUTTON 1: SENSOR LOGGING
+  // BUTTON 1 with Memory Check & Auto-Restart
   // ══════════════════════════════════════════════════════════════
   if (takeSwitch1Event()) {
     Serial.println("\n\n");
@@ -365,15 +356,18 @@ void loop() {
     Serial.println("║      BUTTON 1: SENSOR LOGGING EVENT            ║");
     Serial.println("╚════════════════════════════════════════════════╝\n");
     
+    // Check memory FIRST - restart if needed
+    if (!checkMemoryAndRestart()) {
+      Serial.println("⚠ Continuing with low memory (likely to fail)\n");
+    }
+    
     String timestamp;
     float temperature = 0.0;
     float humidity = 0.0;
     bool sensorsOk = true;
     
-    // Step 1: Get timestamp
-    Serial.println("═══ [1/5] GET TIMESTAMP ═══");
+    Serial.println("═══ [1/5] TIMESTAMP ═══");
     if (!readTimeISO(timestamp)) {
-      Serial.println("✗ NTP sync failed");
       timestamp = "2025-11-04 00:00:00";
       sensorsOk = false;
     } else {
@@ -381,113 +375,64 @@ void loop() {
       Serial.println(timestamp);
     }
     
-    // Step 2: Read DHT11
-    Serial.println("\n═══ [2/5] READ DHT11 SENSOR ═══");
+    Serial.println("\n═══ [2/5] DHT11 ═══");
     if (!readDHT(temperature, humidity)) {
-      Serial.println("✗ DHT11 read FAILED!");
-      Serial.println("  Check: GPIO14 (D5) connection");
-      temperature = 0.0;
-      humidity = 0.0;
       sensorsOk = false;
     } else {
-      Serial.print("✓ Temperature: ");
+      Serial.print("✓ ");
       Serial.print(temperature, 1);
-      Serial.println("°C");
-      Serial.print("✓ Humidity: ");
+      Serial.print("°C, ");
       Serial.print(humidity, 1);
       Serial.println("%");
     }
     
-    // Step 3: Transmit to database
-    Serial.println("\n═══ [3/5] SAVE TO DATABASE ═══");
-    uint32_t nextCount = switch1Count() + 1;
-    
+    Serial.println("\n═══ [3/5] DATABASE ═══");
     bool dbSuccess = false;
     if (sensorsOk) {
-      dbSuccess = transmitToDatabase(timestamp, temperature, humidity, nextCount);
-      if (dbSuccess) {
-        incSwitch1();
-        Serial.println("✓ Data logged - Count: " + String(switch1Count()));
-      }
-    } else {
-      Serial.println("⚠ SKIPPED - Sensor errors");
+      uint32_t cnt = switch1Count() + 1;
+      dbSuccess = transmitToDatabase(timestamp, temperature, humidity, cnt);
+      if (dbSuccess) incSwitch1();
     }
     
-    // Step 4: Send IFTTT notification (SMS + Slack)
-    Serial.println("\n═══ [4/5] SEND NOTIFICATIONS ═══");
+    delay(500);
+    
+    Serial.println("\n═══ [4/5] IFTTT ═══");
+    bool notifySuccess = false;
     if (sensorsOk) {
-      String nodeName = "node_1";
-      bool iftttSuccess = sendIFTTTNotification(nodeName, temperature, humidity);
-      if (iftttSuccess) {
-        Serial.println("✓ Notifications sent successfully");
-      } else {
-        Serial.println("⚠ Notifications partially failed");
-      }
-    } else {
-      Serial.println("⚠ SKIPPED - Sensor errors");
+      notifySuccess = sendIFTTTNotification("node_1", temperature, humidity);
     }
     
-    // Step 5: Visual feedback
-    Serial.println("\n═══ [5/5] VISUAL CONFIRMATION ═══");
+    Serial.println("\n═══ [5/5] VISUAL ═══");
     blinkAsync(PIN_LED1, 250, 2000);
-    Serial.println("✓ LED1 blinking (2 seconds)");
     
-    // Summary
     Serial.println("\n╔════════════════════════════════════════════════╗");
-    if (sensorsOk && dbSuccess) {
-      Serial.println("║           ✓ ALL OPERATIONS SUCCESSFUL         ║");
-    } else {
-      Serial.println("║           ⚠ SOME OPERATIONS FAILED            ║");
-    }
-    Serial.print("║  Activity Count: ");
-    Serial.print(switch1Count());
-    if (switch1Count() < 10) Serial.print("  ");
-    else if (switch1Count() < 100) Serial.print(" ");
-    Serial.println("                            ║");
+    Serial.println("║               SUMMARY                          ║");
+    Serial.println("╠════════════════════════════════════════════════╣");
+    Serial.print("║  Sensors:  ");
+    Serial.println(sensorsOk ? "✓ OK    ║" : "✗ FAIL  ║");
+    Serial.print("║  Database: ");
+    Serial.println(dbSuccess ? "✓ OK    ║" : "✗ FAIL  ║");
+    Serial.print("║  IFTTT:    ");
+    Serial.println(notifySuccess ? "✓ OK    ║" : "✗ FAIL  ║");
     Serial.println("╚════════════════════════════════════════════════╝\n");
+    
+    if (!dbSuccess || !notifySuccess) {
+      Serial.println("💡 System will auto-restart before next Button 1");
+      Serial.println("   to ensure enough memory for SSL\n");
+    }
   }
   
   // ══════════════════════════════════════════════════════════════
-  // BUTTON 2: STATUS CHECK
+  // BUTTON 2
   // ══════════════════════════════════════════════════════════════
   if (takeSwitch2Event()) {
-    Serial.println("\n\n");
-    Serial.println("╔════════════════════════════════════════════════╗");
-    Serial.println("║      BUTTON 2: LED/RGB STATUS CHECK            ║");
-    Serial.println("╚════════════════════════════════════════════════╝\n");
-    
-    Serial.println("═══ [1/3] POLL LED STATUS ═══");
-    bool ledChanged = pollLEDControl();
-    Serial.println(ledChanged ? "✓ LED states updated" : "✓ No changes");
-    
-    delay(100);
-    
-    Serial.println("\n═══ [2/3] POLL RGB STATUS ═══");
-    bool rgbChanged = pollRGBControl();
-    Serial.println(rgbChanged ? "✓ RGB values updated" : "✓ No changes");
-    
-    String ledStatus = getLEDStatusString();
-    String rgbStatus = getRGBStatusString();
-    
-    Serial.println("\nCurrent Status:");
-    Serial.print("  ");
-    Serial.println(ledStatus);
-    Serial.print("  ");
-    Serial.println(rgbStatus);
-    
-    Serial.println("\n═══ [3/3] VISUAL CONFIRMATION ═══");
+    Serial.println("\n[BUTTON 2] Status check...");
+    pollLEDControl();
+    pollRGBControl();
+    Serial.println(getLEDStatusString());
+    Serial.println(getRGBStatusString());
     blinkAsync(PIN_LED2, 250, 2000);
-    Serial.println("✓ LED2 blinking (2 seconds)");
-    
     incSwitch2();
-    
-    Serial.println("\n╔════════════════════════════════════════════════╗");
-    Serial.print("║  Activity Count: ");
-    Serial.print(switch2Count());
-    if (switch2Count() < 10) Serial.print("  ");
-    else if (switch2Count() < 100) Serial.print(" ");
-    Serial.println("                            ║");
-    Serial.println("╚════════════════════════════════════════════════╝\n");
   }
   
   delay(10);
