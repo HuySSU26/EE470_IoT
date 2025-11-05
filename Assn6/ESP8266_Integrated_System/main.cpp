@@ -91,7 +91,7 @@
 // CONFIGURATION
 // ============================================================================
 const char* SENSOR_DASHBOARD_URL = "https://huynguyen.co/Chartjs/sensor_dashboard.php";
-const char* IFTTT_WEBHOOK_KEY = "8RnOIAiHnVAoyOFXIZg2D";
+const char* IFTTT_WEBHOOK_KEY = "WEBHOOK_KEY";  // Replace with actual PSK
 const char* IFTTT_EVENT_NAME = "sensor_alert";
 
 // Memory management
