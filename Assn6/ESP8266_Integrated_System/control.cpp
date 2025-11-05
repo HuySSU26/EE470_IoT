@@ -1,5 +1,5 @@
 // ============================================================================
-// control.cpp - Remote LED/RGB Control Implementation
+// control.cpp - Remote LED/RGB Control Implementation - MEMORY LEAK FIXED
 // ============================================================================
 
 #include "control.h"
@@ -69,9 +69,9 @@ static String getJsonString(const String& json, const char* key, bool& ok) {
   int i = colon + 1;
   while (i < (int)json.length() && isspace(json[i])) i++;
 
-  if (i >= (int)json.length() || json[i] != '\"') return "";
+  if (i >= (int)json.length() || json[i] != '"') return "";
   int q1 = i;
-  int q2 = json.indexOf('\"', q1 + 1);
+  int q2 = json.indexOf('"', q1 + 1);
   if (q2 < 0) return "";
 
   ok = true;
@@ -86,7 +86,7 @@ void controlBegin() {
 }
 
 /**
- * Poll LED control status from server
+ * Poll LED control status from server - MEMORY LEAK FIXED
  */
 bool pollLEDControl() {
   if (!ensureWiFi()) {
@@ -96,18 +96,20 @@ bool pollLEDControl() {
 
   Serial.println("[CONTROL] Polling LED status...");
 
-  static WiFiClientSecure client;
-  client.setInsecure();
+  // FIX: Create new client each time (not static!)
+  WiFiClientSecure* client = new WiFiClientSecure();
+  client->setInsecure();
 
   HTTPClient http;
   http.setTimeout(7000);
-  http.setReuse(true);
+  http.setReuse(false);  // Don't reuse connections
 
   // Add cache-busting parameter
   String url = String(LED_CONTROL_URL) + "?t=" + String(millis());
 
-  if (!http.begin(client, url)) {
+  if (!http.begin(*client, url)) {
     Serial.println("[CONTROL] LED HTTP begin failed");
+    delete client;  // Clean up
     return false;
   }
 
@@ -158,11 +160,13 @@ bool pollLEDControl() {
   }
 
   http.end();
+  delete client;  // FIX: Clean up memory!
+  
   return changed;
 }
 
 /**
- * Poll RGB values from server
+ * Poll RGB values from server - Already correct (creates new client)
  */
 bool pollRGBControl() {
   if (!ensureWiFi()) {
